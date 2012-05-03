@@ -1,6 +1,6 @@
 /***************************************************************************
-                         liboutputaudiothreaded
-                          --------------------
+			 liboutputaudiothreaded
+			  --------------------
     Copyright (C) 2007 Giuseppe "denever" Martino
     begin                : Fri 30 Mar 2007
     email                : denever@users.sourceforge.net
@@ -39,11 +39,12 @@ int offset = numeric_limits<short>::max()/2 - 1;
 oastream::oastream()
 {
     m_phase = 0.0;
-    m_thread = 0;    
+    m_thread = 0;
     m_format.bits = 16;
     m_format.channels = 2;
     m_format.rate = 44100;
     m_format.byte_format = AO_FMT_LITTLE;
+    m_format.matrix = NULL;
 
     ao_initialize();
 }
@@ -51,20 +52,20 @@ oastream::oastream()
 oastream::oastream(size_type b, size_type sr, size_type ch, size_type bf)
 {
     m_phase = 0.0;
-    m_thread = 0;        
+    m_thread = 0;
     m_format.bits = b;
     m_format.channels = ch;
     m_format.rate = sr;
     m_format.byte_format = bf;
 
-    ao_initialize();    
+    ao_initialize();
 }
 
 oastream::oastream(const oastream& cpy)
 {
     m_format = cpy.m_format;
 }
-    
+
 oastream::~oastream()
 {
     ao_shutdown();
@@ -82,9 +83,9 @@ void oastream::thread_function()
 
     if( (m_default_driver = ao_default_driver_id()) < 0)
 	std::cerr << "There is no default driver."<<endl;
-    
+
     m_audio = ao_open_live(m_default_driver, &m_format, 0);
-    
+
     if(!m_audio)
 	std::cerr << "Error opening device"<<endl;
 
@@ -104,7 +105,7 @@ void oastream::thread_function()
 
     if (m_audio)
 	ao_close(m_audio);
-    
+
     m_finished();
 }
 
@@ -122,7 +123,7 @@ void oastream::enqueue_sine(size_type millisecond, double frequency)
     size_type len =  m_format.bits/8 * m_format.channels * sample_number;
 
     samples_buffer_pointer buffer = new char[len];
-    
+
     for(unsigned int i = 0; i < sample_number; i++)
     {
 	int sample = (int)(0.75 * 32768.0 * sin(2 * M_PI * frequency * ((float) i/m_format.rate)));
@@ -137,11 +138,11 @@ void oastream::enqueue_sine(size_type millisecond, double frequency)
 	buffer[4*i] = buffer[4*i+2] = sample & 0xff;
 	buffer[4*i+1] = buffer[4*i+3] = (sample >> 8) & 0xff;
     }
-    
+
     Wave tmp(len, buffer);
 
     Glib::Mutex::Lock lock (m_mutex);
-    
+
     m_queue.push(tmp);
 }
 
@@ -152,16 +153,16 @@ void oastream::enqueue_pause(size_type millisecond)
     size_type len =  m_format.bits/8 * m_format.channels * sample_number;
 
     samples_buffer_pointer buffer = new char[len];
-    
+
     for(unsigned int i = 0; i<sample_number; i++)
     {
 	buffer[4*i] = buffer[4*i+2] = 0;
 	buffer[4*i+1] = buffer[4*i+3] = 0;
     }
-    
+
     Wave tmp(len, buffer);
 
     Glib::Mutex::Lock lock (m_mutex);
-    
+
     m_queue.push(tmp);
 }
